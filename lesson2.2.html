@@ -530,10 +530,31 @@ const BLOCKS = {
   setBlock:{cat:'block', usesMc:true, usesBlock:true,
     parts:[T('放置方块'), L('X'),IN('x','0',64), L('Y'),IN('y','0',64), L('Z'),IN('z','0',64), L('方块'), PICK('block','btype','STONE')],
     gen:f=>[{t:`mc.setBlock(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')}, block.${f.btype||'STONE'})`}]},
+
+  /* 新增：按数字 ID 放置方块 */
+  setBlockById:{cat:'block', usesMc:true,
+    parts:[T('按ID放置方块'), L('X'),IN('x','0',64), L('Y'),IN('y','0',64), L('Z'),IN('z','0',64), L('方块ID'), IN('bid','如 46',64), L('附加值'), IN('bdata','可选',48)],
+    gen:f=>{
+      const bid = vv(f.bid, '1');
+      const bdata = vv(f.bdata, '');
+      return [{t:`mc.setBlock(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')}, ${bid}${bdata ? ', ' + bdata : ''})`}];
+    }},
+
   fillBlocks:{cat:'block', usesMc:true, usesBlock:true,
     parts:[T('填充区域'), L('X1'),IN('x1','0',52), L('Y1'),IN('y1','0',52), L('Z1'),IN('z1','0',52), T('到'),
            L('X2'),IN('x2','10',52), L('Y2'),IN('y2','10',52), L('Z2'),IN('z2','10',52), L('方块'), PICK('block','btype','STONE')],
     gen:f=>[{t:`mc.setBlocks(${vv(f.x1,'0')}, ${vv(f.y1,'0')}, ${vv(f.z1,'0')}, ${vv(f.x2,'10')}, ${vv(f.y2,'10')}, ${vv(f.z2,'10')}, block.${f.btype||'STONE'})`}]},
+
+  /* 新增：按数字 ID 填充区域 */
+  fillBlocksById:{cat:'block', usesMc:true,
+    parts:[T('按ID填充区域'), L('X1'),IN('x1','0',48), L('Y1'),IN('y1','0',48), L('Z1'),IN('z1','0',48), T('到'),
+           L('X2'),IN('x2','10',48), L('Y2'),IN('y2','10',48), L('Z2'),IN('z2','10',48), L('方块ID'), IN('bid','如 1',48), L('附加值'), IN('bdata','可选',48)],
+    gen:f=>{
+      const bid = vv(f.bid, '1');
+      const bdata = vv(f.bdata, '');
+      return [{t:`mc.setBlocks(${vv(f.x1,'0')}, ${vv(f.y1,'0')}, ${vv(f.z1,'0')}, ${vv(f.x2,'10')}, ${vv(f.y2,'10')}, ${vv(f.z2,'10')}, ${bid}${bdata ? ', ' + bdata : ''})`}];
+    }},
+
   getBlock:{cat:'block', usesMc:true,
     parts:[T('获取方块'), L('存入'),IN('var','blockId',100), L('X'),IN('x','0',56), L('Y'),IN('y','0',56), L('Z'),IN('z','0',56)],
     gen:f=>[{t:`${vv(f.var,'blockId')} = mc.getBlock(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')})`}]},
@@ -934,6 +955,7 @@ const SAMPLE=[
   {type:'chat', f:{msg:'你好，Minecraft！冒险开始啦！'}},
   {type:'getPos'},
   {type:'setBlock', f:{x:'x', y:'y - 1', z:'z', btype:'GOLD_BLOCK'}},
+  {type:'setBlockById', f:{x:'x + 2', y:'y', z:'z', bid:'46', bdata:''}}, /* 新增示例：TNT */
   {type:'ifElifElse', f:{cond1:'x > 10', cond2:'x < -10'}, kids:{
      b1:[{type:'chat', f:{msg:'你在东边！'}}],
      b2:[{type:'chat', f:{msg:'你在西边！'}}],
@@ -995,7 +1017,7 @@ $('#btnClear').addEventListener('click', ()=>{ wsEl.innerHTML=''; regenerate(); 
     '「连接 Minecraft」代码块里要填 IP 地址，它会自动写进 create() 里',
     '填空里可以写算式，例如坐标填 <b>y + 5</b>',
     '先用「玩家位置」代码块，后面就能用 <b>x、y、z</b> 这三个变量啦',
-    '「放置方块」里有 <b>107 种方块</b>，「生成实体」里有 <b>79 种生物</b>，点选择器挑一个吧',
+    '「放置方块」里有 <b>107 种方块</b>，也可以用「按ID放置方块」直接输入数字 ID！',
     '<b>如果 / 当…一直重复</b> 里面可以再放代码块，这叫嵌套',
     '点代码块右上角的 <b>✕</b> 删除，也可以把代码块拖出工作区删除',
   ];
