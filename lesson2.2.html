@@ -331,8 +331,8 @@ body.dragging,body.dragging *{cursor:grabbing!important;user-select:none!importa
     <div class="panel">
       <div class="panel-head">⛏️ 我的程序
         <div class="btns">
-          <button class="btn btn-gold" id="btnSample">⚡ 加载示例</button>
-          <button class="btn btn-red" id="btnClear">🗑 清空</button>
+          <button class="btn btn-gold" id="btnSample"> 加载示例 </button>
+          <button class="btn btn-red" id="btnClear"> 清空 </button>
         </div>
       </div>
       <div id="workspace"></div>
@@ -482,12 +482,12 @@ const IN = (f,ph,w=64) => ({t:'in', f, ph, w});
 const PICK = (cat,f,def) => ({t:'pick', cat, f, def});
 
 const CATS = {
-  connect:{name:'连接', icon:'🔌', color:'#7e8694'},
-  flow:   {name:'控制', icon:'🔁', color:'#e6b13e'},
-  block:  {name:'方块', icon:'🧱', color:'#5cb544'},
-  entity: {name:'实体', icon:'🐔', color:'#48b9da'},
-  player: {name:'玩家', icon:'💬', color:'#e0813f'},
-  data:   {name:'数据', icon:'📦', color:'#a86ad6'},
+  connect:{name:'连接', icon:'', color:'#7e8694'},
+  flow:   {name:'控制', icon:'', color:'#e6b13e'},
+  block:  {name:'方块', icon:'', color:'#5cb544'},
+  entity: {name:'实体', icon:'', color:'#48b9da'},
+  player: {name:'玩家', icon:'', color:'#e0813f'},
+  data:   {name:'数据', icon:'', color:'#a86ad6'},
 };
 
 const arith = op => f => {
