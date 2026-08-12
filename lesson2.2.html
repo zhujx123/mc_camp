@@ -1,0 +1,1018 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Minecraft & Python · mcpi 代码生成器</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=VT323&family=ZCOOL+QingKe+HuangYou&family=Noto+Sans+SC:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+/* ================= 基础与主题变量 ================= */
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --bg:#12151c; --panel:#1c212c; --panel2:#242b3a; --edge:#05060a;
+  --ink:#eef1f7; --dim:#8d96ab; --faint:#5a6274;
+  --grass:#5cb544; --gold:#e6b13e; --lava:#e0603c;
+  --f-px:'Press Start 2P',monospace;
+  --f-cn:'ZCOOL QingKe HuangYou','Noto Sans SC',sans-serif;
+  --f-body:'Noto Sans SC',sans-serif;
+  --f-code:'VT323','Noto Sans SC',monospace;
+}
+html,body{height:100%}
+body{
+  background:var(--bg); color:var(--ink); font-family:var(--f-body);
+  display:flex; flex-direction:column; height:100vh; overflow:hidden;
+}
+body::before{ /* 像素网格底纹 */
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background-image:linear-gradient(rgba(255,255,255,.025) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.025) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+body::after{ /* 暗角 */
+  content:''; position:fixed; inset:0; z-index:0; pointer-events:none;
+  background:radial-gradient(120% 90% at 50% 0%,transparent 55%,rgba(0,0,0,.5));
+}
+::selection{background:var(--grass); color:#06180a}
+::-webkit-scrollbar{width:14px;height:14px}
+::-webkit-scrollbar-track{background:#12151d}
+::-webkit-scrollbar-thumb{background:#39415a;border:3px solid #12151d}
+::-webkit-scrollbar-thumb:hover{background:#4a5578}
+
+/* ================= 漂浮粒子层 ================= */
+#fx{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#fx i{position:absolute;bottom:-14px;display:block;animation:rise linear infinite}
+@keyframes rise{
+  0%{transform:translate(0,0)}
+  50%{transform:translate(16px,-55vh)}
+  100%{transform:translate(-8px,-112vh)}
+}
+
+/* ================= 顶栏 ================= */
+header{
+  position:relative; z-index:2; flex:none;
+  display:flex; align-items:center; gap:18px;
+  padding:12px 20px 16px;
+  background:linear-gradient(#242b3a,#1b2130);
+  border-bottom:3px solid #000;
+}
+header::after{ /* 草方块草皮条 */
+  content:''; position:absolute; left:0; right:0; bottom:0; height:5px;
+  background:repeating-linear-gradient(90deg,#5cb544 0 10px,#4ea739 10px 20px,#68c24e 20px 30px);
+}
+.creeper{
+  width:46px;height:46px;flex:none;position:relative;
+  background:repeating-conic-gradient(#59b94b 0% 25%,#4fae3f 0% 50%) 0 0/11px 11px;
+  border:3px solid #000;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.3), inset 0 -4px 0 rgba(0,0,0,.3), 0 4px 0 rgba(0,0,0,.45);
+  animation:bob 3.2s ease-in-out infinite;
+}
+@keyframes bob{50%{transform:translateY(3px)}}
+.creeper i{position:absolute;left:0;top:0;background:transparent}
+.kicker{font-family:var(--f-px);font-size:9px;color:var(--gold);letter-spacing:1px;margin-bottom:7px}
+h1.title{
+  font-family:var(--f-px); font-size:21px; letter-spacing:1px;
+  display:flex; gap:12px; align-items:center; text-shadow:3px 3px 0 #000;
+}
+h1.title .t-mc{color:#8fe07a}
+h1.title .t-amp{color:var(--gold)}
+h1.title .t-py{color:#ffd76e}
+.hud{margin-left:auto;display:flex;gap:10px;align-items:center}
+.chip{
+  display:flex;align-items:center;gap:8px;
+  background:#12151d;border:2px solid #000;padding:6px 14px;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.06), 0 3px 0 rgba(0,0,0,.4);
+}
+.chip b{font-family:var(--f-code);font-size:26px;color:var(--gold);line-height:1}
+.chip small{color:var(--dim);font-size:14px}
+.chip.live{font-family:var(--f-px);font-size:8px;color:#8fe07a}
+.chip.live .dot{width:9px;height:9px;background:#7ce35c;display:block;animation:pulse 1.2s steps(2) infinite}
+@keyframes pulse{50%{opacity:.25}}
+
+/* ================= 主体分栏（左 45% / 右 55%） ================= */
+main{
+  position:relative;z-index:1;flex:1;min-height:0;
+  display:grid;grid-template-columns:45fr 55fr;gap:14px;padding:14px 16px;
+}
+.left{display:grid;grid-template-rows:minmax(0,44%) minmax(0,1fr);gap:14px;min-height:0}
+.panel{
+  background:var(--panel);border:3px solid var(--edge);min-height:0;
+  display:flex;flex-direction:column;
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.06), inset 0 -4px 0 rgba(0,0,0,.35), 0 6px 0 rgba(0,0,0,.35);
+  animation:panelIn .5s ease both;
+}
+.left .panel:nth-child(2){animation-delay:.08s}
+.right{animation-delay:.16s}
+@keyframes panelIn{from{opacity:0;transform:translateY(12px)}}
+.panel-head{
+  flex:none;display:flex;align-items:center;gap:12px;
+  padding:10px 14px;background:var(--panel2);border-bottom:3px solid var(--edge);
+  font-family:var(--f-cn);font-size:20px;letter-spacing:2px;
+}
+.panel-head .hint{margin-left:auto;font-family:var(--f-body);font-size:14px;color:var(--faint);letter-spacing:0}
+.panel-head .btns{margin-left:auto;display:flex;gap:8px}
+
+/* ================= 按钮 ================= */
+.btn{
+  font-family:var(--f-cn);font-size:18px;letter-spacing:1px;color:#fff;
+  text-shadow:1px 1px 0 rgba(0,0,0,.55);
+  background:#5a6272;border:2px solid var(--edge);padding:6px 14px;cursor:pointer;
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.22), inset 0 -3px 0 rgba(0,0,0,.3), 0 3px 0 var(--edge);
+  transition:filter .12s, transform .06s, box-shadow .06s;
+}
+.btn:hover{filter:brightness(1.15)}
+.btn:active{transform:translateY(2px);box-shadow:inset 0 2px 0 rgba(255,255,255,.22), inset 0 -3px 0 rgba(0,0,0,.3), 0 1px 0 var(--edge)}
+.btn-gold{background:#c98f1f}.btn-green{background:#4f9e3c}
+.btn-red{background:#b8452f}.btn-cyan{background:#2e8ca8}
+
+/* ================= 分类标签页 ================= */
+.tabs{flex:none;display:flex;gap:6px;padding:10px 10px 0}
+.tab{
+  flex:1;display:flex;align-items:center;justify-content:center;gap:6px;
+  padding:9px 2px;background:#262b38;border:2px solid #000;border-bottom-width:4px;
+  font-family:var(--f-cn);font-size:18px;letter-spacing:1px;color:#9aa3b8;cursor:pointer;
+  transition:transform .12s, background .12s, color .12s;
+}
+.tab:hover{transform:translateY(-2px);color:#dfe5f2}
+.tab.active{background:var(--tc);color:#fff;text-shadow:1px 1px 0 rgba(0,0,0,.5);transform:translateY(-2px)}
+
+/* ================= 代码块通用样式（大字号） ================= */
+.palette{flex:1;min-height:0;overflow:auto;padding:12px;display:flex;flex-direction:column;gap:12px}
+.pal-bar{
+  align-self:flex-start;font-family:var(--f-cn);font-size:16px;letter-spacing:1px;color:#fff;
+  background:var(--bc);border:2px solid #000;padding:3px 14px;text-shadow:1px 1px 0 rgba(0,0,0,.5);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.25), 0 3px 0 rgba(0,0,0,.4);
+}
+.block{
+  position:relative;background:var(--bc,#888);color:#fff;
+  border:2px solid #0b0d13;touch-action:none;
+  font-family:var(--f-cn);
+  box-shadow:inset 0 3px 0 rgba(255,255,255,.28), inset 0 -4px 0 rgba(0,0,0,.30), 0 3px 0 rgba(0,0,0,.45);
+}
+.b-head{display:flex;align-items:center;flex-wrap:wrap;gap:8px;padding:10px 12px}
+.lab{font-size:20px;letter-spacing:1px;text-shadow:1px 1px 0 rgba(0,0,0,.5)}
+.axis{
+  font-family:var(--f-px);font-size:10px;color:#fff;flex:none;
+  background:rgba(0,0,0,.30);padding:4px 5px;letter-spacing:0;
+}
+.grip{
+  flex:none;width:10px;height:22px;margin-right:2px;cursor:grab;
+  background:repeating-linear-gradient(180deg,rgba(0,0,0,.4) 0 4px,transparent 4px 8px);
+}
+.grip.hide{visibility:hidden}
+.b-head input,.b-head select{
+  font-family:var(--f-code);font-size:20px;line-height:1.25;color:#ffe9a8;
+  background:#101319;border:2px solid var(--edge);min-width:40px;padding:5px 9px;
+  box-shadow:inset 0 2px 0 rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.15);
+}
+.b-head input::placeholder{color:#767f95;font-family:var(--f-body);font-size:14px;letter-spacing:0}
+.b-head input:focus,.b-head select:focus{outline:3px solid #ffe08a;outline-offset:-1px;background:#171b25}
+.b-head input:disabled,.b-head select:disabled{opacity:.8;cursor:default}
+.del{
+  margin-left:auto;flex:none;width:30px;height:30px;cursor:pointer;
+  border:2px solid rgba(0,0,0,.45);background:rgba(0,0,0,.3);
+  color:#fff;font-size:15px;line-height:1;
+  opacity:.85;transition:opacity .15s, background .15s;
+}
+.del:hover{background:#c8452f;border-color:#000;opacity:1}
+.c-body{
+  margin-left:14px;min-height:60px;padding:10px 10px 10px 12px;
+  display:flex;flex-direction:column;gap:10px;
+  background:rgba(0,0,0,.28);border-left:12px solid var(--bc);
+  box-shadow:inset 0 3px 0 rgba(0,0,0,.25);
+}
+.c-foot{
+  height:14px;background:var(--bc);
+  border-top:2px solid rgba(0,0,0,.35);
+  box-shadow:inset 0 2px 0 rgba(255,255,255,.22);
+}
+.block.pal{cursor:grab;transition:transform .12s, filter .12s}
+.block.pal:hover{transform:translateX(4px);filter:brightness(1.1)}
+.block.pal .del{display:none}
+
+/* ================= 方块 / 实体 选择器（中英文展开面板） ================= */
+.pick-wrap{position:relative;display:inline-flex}
+.pick-btn{
+  display:flex;align-items:center;gap:10px;justify-content:space-between;
+  font-family:var(--f-cn);font-size:19px;letter-spacing:1px;color:#fff;cursor:pointer;
+  background:#101319;border:2px solid var(--edge);padding:5px 12px;min-width:200px;
+  box-shadow:inset 0 2px 0 rgba(0,0,0,.6), 0 1px 0 rgba(255,255,255,.15);
+}
+.pick-btn:hover{background:#1c2230}
+.pick-btn:disabled{opacity:.8;cursor:default}
+.pick-btn .en{font-family:var(--f-code);font-size:15px;color:#8d96ab}
+.pick-pop{
+  position:fixed;z-index:1200;width:390px;max-height:370px;overflow:auto;
+  background:#171b25;border:3px solid #000;padding:10px;display:none;
+  box-shadow:0 10px 0 rgba(0,0,0,.4), 0 18px 40px rgba(0,0,0,.6);
+}
+.pick-pop.open{display:block}
+.pick-search{
+  width:100%;font-family:var(--f-body);font-size:16px;color:#fff;
+  background:#101319;border:2px solid var(--edge);padding:7px 10px;margin-bottom:8px;
+}
+.pick-search:focus{outline:2px solid #ffe08a}
+.ep-group{font-family:var(--f-cn);color:var(--gold);font-size:16px;letter-spacing:1px;margin:10px 4px 6px}
+.ep-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.ep-item{
+  display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;
+  background:#202634;border:2px solid #000;transition:background .1s, transform .1s;
+}
+.ep-item:hover{background:#2c3446;transform:translateX(2px)}
+.ep-item.sel{background:#2f5327;border-color:#7ce35c}
+.ep-item .ei{font-size:22px}
+.ep-item .cn{font-family:var(--f-cn);font-size:17px;color:#fff;display:block;line-height:1.1}
+.ep-item .en{font-family:var(--f-code);font-size:14px;color:#8d96ab;display:block}
+.ep-none{color:var(--dim);text-align:center;padding:14px;font-size:15px}
+
+/* ================= 程序工作区 ================= */
+#workspace{
+  flex:1;min-height:0;overflow:auto;position:relative;
+  display:flex;flex-direction:column;gap:10px;padding:12px;
+  background-image:linear-gradient(rgba(255,255,255,.02) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(255,255,255,.02) 1px,transparent 1px);
+  background-size:26px 26px;
+}
+#workspace .block{transition:filter .12s}
+#workspace .block:hover{filter:brightness(1.06)}
+#workspace.empty::after{
+  content:'⛏ 从上方仓库拖动代码块到这里，开始编程';
+  margin:auto;padding:28px 36px;text-align:center;
+  font-family:var(--f-cn);font-size:22px;letter-spacing:2px;color:var(--dim);
+  border:3px dashed #3a4152;animation:floaty 2.4s ease-in-out infinite;
+}
+.c-body.empty::after{
+  content:'⬇ 拖到这里嵌套';align-self:stretch;text-align:center;
+  font-size:14px;color:rgba(255,255,255,.65);letter-spacing:1px;
+  border:2px dashed rgba(255,255,255,.35);padding:9px;font-family:var(--f-body);
+}
+@keyframes floaty{50%{transform:translateY(-5px)}}
+.drop-line{
+  flex:none;height:9px;border:2px solid #000;
+  background:repeating-linear-gradient(90deg,#ffe08a 0 12px,#f0a92e 12px 24px);
+  box-shadow:0 0 12px rgba(255,224,138,.55);
+  animation:blink .5s steps(2) infinite;
+}
+@keyframes blink{50%{filter:brightness(1.4)}}
+#workspace.drop-hot,.c-body.drop-hot{outline:2px dashed rgba(255,224,138,.6);outline-offset:-5px;background-color:rgba(255,224,138,.05)}
+#workspace.drop-hot::after,.c-body.drop-hot::after{display:none}
+
+/* ================= 拖拽幽灵 ================= */
+.ghost{position:fixed;left:0;top:0;z-index:1000;pointer-events:none;opacity:.96;cursor:grabbing}
+.ghost .block{box-shadow:0 10px 0 rgba(0,0,0,.3), 0 20px 34px rgba(0,0,0,.55)}
+.ghost-bad .block{filter:saturate(.35) brightness(.7);outline:3px dashed var(--lava)}
+body.dragging,body.dragging *{cursor:grabbing!important;user-select:none!important}
+.block.landed{animation:pop .3s ease}
+@keyframes pop{0%{transform:scale(.92) translateY(-6px)}60%{transform:scale(1.03)}}
+
+/* ================= 代码面板 ================= */
+.file{
+  font-family:var(--f-code);font-size:22px;color:#9fe88a;line-height:1;
+  background:#10141d;border:2px solid #000;padding:4px 12px;
+}
+.codebox{
+  flex:1;min-height:0;overflow:auto;padding:14px 16px 22px;
+  font-family:var(--f-code);font-size:24px;line-height:1.4;
+  background:#0d1017;
+}
+.cl{display:flex;white-space:pre}
+.ln{
+  flex:none;width:54px;text-align:right;padding-right:14px;margin-right:14px;
+  color:#414a5f;border-right:2px solid #232a3a;user-select:none;
+}
+.lt{color:#dfe6f3}
+.lt i{font-style:normal}
+.tk-k{color:#ff9d5c}.tk-s{color:#ffd76e}.tk-c{color:#69758c}
+.tk-a{color:#6fd7c9}.tk-n{color:#c792ea}
+.cl.warn .lt,.cl.warn .lt i{color:#ff9d86}
+.cl.dim .lt,.cl.dim .lt i{color:#566078}
+.cur{display:inline-block;width:11px;height:20px;background:#9fe88a;vertical-align:-2px;animation:caret 1s steps(2) infinite}
+@keyframes caret{50%{opacity:0}}
+.tipsbar{
+  flex:none;padding:9px 14px;border-top:3px solid var(--edge);
+  background:#1a1f2b;color:var(--dim);font-size:15px;
+}
+.tipsbar b{color:var(--gold)}
+.tipsbar .tip{transition:opacity .4s}
+.tipsbar .tip.fade{opacity:0}
+
+@media (max-width:1080px){
+  body{overflow:auto;height:auto}
+  main{grid-template-columns:1fr;height:auto}
+  .left{grid-template-rows:360px 480px}
+  .right{min-height:480px}
+}
+</style>
+</head>
+<body>
+<div id="fx"></div>
+
+<header>
+  <div class="creeper" title="Creeper 监工"><i id="cpx"></i></div>
+  <div>
+    <div class="kicker">MINECRAFT · PI EDITION · MCPI</div>
+    <h1 class="title"><span class="t-mc">Minecraft</span><span class="t-amp">&</span><span class="t-py">Python</span></h1>
+  </div>
+  <div class="hud">
+    <div class="chip">🧱<b id="statBlocks">0</b><small>个代码块</small></div>
+    <div class="chip">📜<b id="statLines">0</b><small>行代码</small></div>
+    <div class="chip live"><i class="dot"></i>LIVE</div>
+  </div>
+</header>
+
+<main>
+  <!-- 左侧：代码块仓库 + 拼搭区 -->
+  <section class="left">
+    <div class="panel">
+      <div class="panel-head">📦 代码块仓库<span class="hint">拖到下方工作区 · 双击快速添加</span></div>
+      <div class="tabs" id="tabs"></div>
+      <div class="palette" id="palette"></div>
+    </div>
+    <div class="panel">
+      <div class="panel-head">⛏️ 我的程序
+        <div class="btns">
+          <button class="btn btn-gold" id="btnSample">⚡ 加载示例</button>
+          <button class="btn btn-red" id="btnClear">🗑 清空</button>
+        </div>
+      </div>
+      <div id="workspace"></div>
+    </div>
+  </section>
+
+  <!-- 右侧：实时代码 -->
+  <section class="panel right">
+    <div class="panel-head">
+      <span class="file">▣ minecraft_program.py</span>
+      <div class="btns">
+        <button class="btn btn-green" id="btnCopy">⧉ 复制代码</button>
+        <button class="btn btn-cyan" id="btnDown">⬇ 下载 .py</button>
+      </div>
+    </div>
+    <div class="codebox" id="codebox"></div>
+    <div class="tipsbar">💡 <span class="tip" id="tip"></span></div>
+  </section>
+</main>
+
+<script>
+'use strict';
+/* =========================================================
+   1. 工具函数
+   ========================================================= */
+const $ = s => document.querySelector(s);
+const vv = (v,d) => { v=(v??'').trim(); return v==='' ? d : v; };
+
+function pyExpr(v, fb){ /* 数字/变量原样，其它自动加引号 */
+  v=(v??'').trim(); if(!v) return fb ?? '0';
+  if(/^-?\d+(\.\d+)?$/.test(v)) return v;
+  if(/^".*"$|^'.*'$/.test(v)) return v;
+  if(/^[A-Za-z_]\w*(\.\w+|\(.*\)|\[.*\])*$/.test(v)) return v;
+  if(/^[\w.\[\]()+\-*/%<>=! ,'"&|]+$/.test(v)) return v;
+  return '"' + v.replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
+}
+function pyStr(v, fb){
+  v=(v??'').trim(); if(!v) return `"${fb}"`;
+  return '"' + v.replace(/\\/g,'\\\\').replace(/"/g,'\\"') + '"';
+}
+
+/* =========================================================
+   2. 方块目录（107 种，中英文对照）
+   ========================================================= */
+const BLOCK_DATA={
+ '自然与地形':[
+  [0,'AIR','空气','☁️'],[1,'STONE','石头','🪨'],[2,'GRASS','草方块','🟩'],[3,'DIRT','泥土','🟫'],
+  [4,'COBBLESTONE','圆石','🪨'],[12,'SAND','沙子','🟨'],[13,'GRAVEL','沙砾','⚪'],[82,'CLAY','粘土块','⬜'],
+  [48,'MOSS_STONE','苔石','🟢'],[49,'OBSIDIAN','黑曜石','🟪'],[121,'END_STONE','末地石','🌕'],[87,'NETHERRACK','地狱岩','🟥'],
+  [88,'SOUL_SAND','灵魂沙','🟤'],[7,'BEDROCK','基岩','⬛'],[110,'MYCELIUM','菌丝','🟣'],[246,'GLOWING_OBSIDIAN','发光黑曜石','✨'],
+  [247,'NETHER_REACTOR_CORE','下界反应核','💠'],
+ ],
+ '水 岩浆 冰雪':[
+  [8,'WATER_FLOWING','流动的水','🌊'],[8,'WATER','水','🌊'],[9,'WATER_STATIONARY','静止的水','💧'],
+  [10,'LAVA_FLOWING','流动的岩浆','🌋'],[10,'LAVA','岩浆','🌋'],[11,'LAVA_STATIONARY','静止的岩浆','🔥'],
+  [79,'ICE','冰','🧊'],[78,'SNOW','雪','❄️'],[80,'SNOW_BLOCK','雪块','⛄'],
+ ],
+ '矿石':[
+  [14,'GOLD_ORE','金矿石','✨'],[15,'IRON_ORE','铁矿石','⚙️'],[16,'COAL_ORE','煤矿石','⚫'],
+  [21,'LAPIS_LAZULI_ORE','青金石矿石','🔵'],[56,'DIAMOND_ORE','钻石矿石','💎'],[73,'REDSTONE_ORE','红石矿石','🔴'],
+  [129,'EMERALD_ORE','绿宝石矿石','💚'],
+ ],
+ '珍贵方块':[
+  [41,'GOLD_BLOCK','金块','🟡'],[42,'IRON_BLOCK','铁块','⬜'],[57,'DIAMOND_BLOCK','钻石块','💎'],[22,'LAPIS_LAZULI_BLOCK','青金石块','🔷'],
+ ],
+ '植物与农作物':[
+  [6,'SAPLING','树苗','🌱'],[17,'WOOD','原木','🪵'],[18,'LEAVES','树叶','🍃'],[161,'LEAVES2','深色树叶','🍂'],
+  [31,'GRASS_TALL','高草丛','🌿'],[32,'DEAD_BUSH','枯萎的灌木','🥀'],[37,'FLOWER_YELLOW','黄花','🌼'],[38,'FLOWER_CYAN','青花','🌸'],
+  [39,'MUSHROOM_BROWN','棕色蘑菇','🍄'],[40,'MUSHROOM_RED','红色蘑菇','🍄'],[81,'CACTUS','仙人掌','🌵'],[83,'SUGAR_CANE','甘蔗','🎋'],
+  [86,'PUMPKIN','南瓜','🎃'],[91,'LIT_PUMPKIN','南瓜灯','🎃'],[103,'MELON','西瓜','🍉'],[60,'FARMLAND','耕地','🌾'],
+ ],
+ '建筑与装饰':[
+  [5,'WOOD_PLANKS','木板','🟧'],[24,'SANDSTONE','砂岩','🟨'],[98,'STONE_BRICK','石砖','🧱'],[45,'BRICK_BLOCK','红砖块','🧱'],
+  [112,'NETHER_BRICK','地狱砖块','🟥'],[35,'WOOL','羊毛','🐑'],[20,'GLASS','玻璃','🪟'],[95,'STAINED_GLASS','染色玻璃','🪟'],
+  [102,'GLASS_PANE','玻璃板','🪟'],[47,'BOOKSHELF','书架','📚'],[30,'COBWEB','蜘蛛网','🕸️'],[89,'GLOWSTONE_BLOCK','萤石','💡'],
+  [46,'TNT','TNT炸药','🧨'],[26,'BED','床','🛏️'],[54,'CHEST','箱子','📦'],[58,'CRAFTING_TABLE','工作台','🛠️'],
+  [61,'FURNACE_INACTIVE','熔炉(未燃烧)','🪨'],[62,'FURNACE_ACTIVE','熔炉(燃烧中)','🔥'],[50,'TORCH','火把','🔥'],[51,'FIRE','火','🔥'],
+  [63,'SIGN_STANDING','站立告示牌','🪧'],[68,'SIGN_WALL','墙上告示牌','🪧'],[95,'BEDROCK_INVISIBLE','隐形基岩','👻'],
+ ],
+ '楼梯与台阶':[
+  [53,'STAIRS_WOOD','木楼梯','🔺'],[67,'STAIRS_COBBLESTONE','圆石楼梯','🔺'],[108,'STAIRS_BRICK','红砖楼梯','🔺'],
+  [109,'STAIRS_STONE_BRICK','石砖楼梯','🔺'],[114,'STAIRS_NETHER_BRICK','地狱砖楼梯','🔺'],[128,'STAIRS_SANDSTONE','砂岩楼梯','🔺'],
+  [44,'STONE_SLAB','石台阶','🪨'],[43,'STONE_SLAB_DOUBLE','双层石台阶','🪨'],[126,'WOODEN_SLAB','木台阶','🪵'],
+ ],
+ '门 栅栏与梯子':[
+  [64,'DOOR_WOOD','木门','🚪'],[71,'DOOR_IRON','铁门','🚪'],[193,'DOOR_SPRUCE','云杉木门','🚪'],[194,'DOOR_BIRCH','白桦木门','🚪'],
+  [195,'DOOR_JUNGLE','丛林木门','🚪'],[196,'DOOR_ACACIA','金合欢木门','🚪'],[197,'DOOR_DARK_OAK','深色橡木门','🚪'],
+  [96,'TRAPDOOR','活板门','🚪'],[167,'TRAPDOOR_IRON','铁活板门','🚪'],[85,'FENCE','栅栏','🚧'],
+  [107,'FENCE_GATE','栅栏门','🚧'],[113,'FENCE_NETHER_BRICK','地狱砖栅栏','🚧'],[188,'FENCE_SPRUCE','云杉木栅栏','🚧'],
+  [189,'FENCE_BIRCH','白桦木栅栏','🚧'],[190,'FENCE_JUNGLE','丛林木栅栏','🚧'],[191,'FENCE_DARK_OAK','深色橡木栅栏','🚧'],
+  [192,'FENCE_ACACIA','金合欢木栅栏','🚧'],[65,'LADDER','梯子','🪜'],
+ ],
+ '铁轨':[
+  [66,'RAIL','铁轨','🛤️'],[27,'RAIL_POWERED','充能铁轨','🛤️'],[28,'RAIL_DETECTOR','探测铁轨','🛤️'],[157,'RAIL_ACTIVATOR','激活铁轨','🛤️'],
+ ],
+};
+
+/* =========================================================
+   3. 实体目录（79 种，中英文对照）
+   ========================================================= */
+const ENTITY_DATA={
+ '动物与友好生物':[
+  [90,'PIG','猪','🐷'],[91,'SHEEP','羊','🐑'],[92,'COW','牛','🐮'],[93,'CHICKEN','鸡','🐔'],
+  [94,'SQUID','鱿鱼','🦑'],[95,'WOLF','狼','🐺'],[96,'MUSHROOM_COW','哞菇','🍄'],[98,'OCELOT','豹猫','🐱'],
+  [100,'HORSE','马','🐴'],[31,'DONKEY','驴','🐴'],[32,'MULE','骡','🐴'],[101,'RABBIT','兔子','🐰'],
+  [102,'POLAR_BEAR','北极熊','🐻‍❄️'],[103,'LLAMA','羊驼','🦙'],[105,'PARROT','鹦鹉','🦜'],[65,'BAT','蝙蝠','🦇'],
+  [97,'SNOWMAN','雪傀儡','⛄'],[99,'IRON_GOLEM','铁傀儡','🤖'],[120,'VILLAGER','村民','👨‍🌾'],
+ ],
+ '怪物':[
+  [50,'CREEPER','苦力怕','💥'],[54,'ZOMBIE','僵尸','🧟'],[23,'HUSK','尸壳','🧟'],[27,'ZOMBIE_VILLAGER','僵尸村民','🧟'],
+  [57,'PIG_ZOMBIE','僵尸猪人','🐽'],[51,'SKELETON','骷髅','💀'],[6,'STRAY','流浪者','💀'],[5,'WITHER_SKELETON','凋灵骷髅','💀'],
+  [52,'SPIDER','蜘蛛','🕷️'],[59,'CAVE_SPIDER','洞穴蜘蛛','🕷️'],[55,'SLIME','史莱姆','🟢'],[62,'MAGMA_CUBE','岩浆怪','🔴'],
+  [58,'ENDERMAN','末影人','👾'],[67,'ENDERMITE','末影螨','🐛'],[66,'WITCH','女巫','🧙'],[68,'GUARDIAN','守卫者','🐡'],
+  [4,'ELDER_GUARDIAN','远古守卫者','🐡'],[69,'SHULKER','潜影贝','📦'],[61,'BLAZE','烈焰人','🔥'],[56,'GHAST','恶魂','👻'],
+  [53,'GIANT','巨人','🗿'],[63,'ENDER_DRAGON','末影龙','🐉'],[64,'WITHER','凋灵','☠️'],[34,'EVOKER','唤魔者','🧙'],
+  [35,'VEX','恼鬼','👻'],[36,'VINDICATOR','卫道士','🪓'],[37,'ILLUSIONER','幻术师','🎭'],[60,'SILVERFISH','蠹虫','🐟'],
+  [29,'ZOMBIE_HORSE','僵尸马','🐴'],[28,'SKELETON_HORSE','骷髅马','🐴'],[33,'EVOKER_FANGS','唤魔者尖牙','🦷'],
+ ],
+ '投射物与物品':[
+  [7,'EGG','鸡蛋','🥚'],[10,'ARROW','箭','🏹'],[24,'SPECTRAL_ARROW','光灵箭','✨'],[11,'SNOWBALL','雪球','❄️'],
+  [12,'FIREBALL','火焰弹','🔥'],[13,'SMALL_FIREBALL','小火焰弹','🔥'],[14,'ENDER_PEARL','末影珍珠','🟣'],[15,'ENDER_SIGNAL','末影之眼','👁️'],
+  [17,'THROWN_EXP_BOTTLE','附魔之瓶','🧪'],[19,'WITHER_SKULL','凋灵之首','💀'],[26,'DRAGON_FIREBALL','末影龙火球','🔥'],[104,'LLAMA_SPIT','羊驼口水','💦'],
+  [20,'PRIMED_TNT','被点燃的TNT','🧨'],[2,'EXPERIENCE_ORB','经验球','✨'],[25,'SHULKER_BULLET','潜影弹','🟣'],
+ ],
+ '载具':[
+  [41,'BOAT','船','⛵'],[42,'MINECART','矿车','🛒'],[43,'MINECART_CHEST','运输矿车','🛒'],[44,'MINECART_FURNACE','动力矿车','🛒'],
+  [45,'MINECART_TNT','TNT矿车','🛒'],[46,'MINECART_HOPPER','漏斗矿车','🛒'],[47,'MINECART_MOB_SPAWNER','刷怪笼矿车','🛒'],[40,'MINECART_COMMAND','命令方块矿车','🛒'],
+ ],
+ '其他':[
+  [3,'AREA_EFFECT_CLOUD','区域效果云','☁️'],[8,'LEASH_HITCH','拴绳结','🪢'],[9,'PAINTING','画','🖼️'],
+  [18,'ITEM_FRAME','物品展示框','🖼️'],[30,'ARMOR_STAND','盔甲架','🛡️'],[200,'ENDER_CRYSTAL','末影水晶','💎'],
+ ],
+};
+
+const CATALOGS={
+  block:{data:BLOCK_DATA,  map:{}},
+  entity:{data:ENTITY_DATA, map:{}},
+};
+Object.values(CATALOGS).forEach(c=>Object.values(c.data).forEach(arr=>arr.forEach(it=>c.map[it[1]]=it)));
+
+/* =========================================================
+   4. 代码块定义
+   ========================================================= */
+const T  = v => ({t:'txt', v});
+const L  = v => ({t:'lbl', v});
+const IN = (f,ph,w=64) => ({t:'in', f, ph, w});
+const PICK = (cat,f,def) => ({t:'pick', cat, f, def});
+
+const CATS = {
+  connect:{name:'连接', icon:'🔌', color:'#7e8694'},
+  flow:   {name:'控制', icon:'🔁', color:'#e6b13e'},
+  block:  {name:'方块', icon:'🧱', color:'#5cb544'},
+  entity: {name:'实体', icon:'🐔', color:'#48b9da'},
+  player: {name:'玩家', icon:'💬', color:'#e0813f'},
+  data:   {name:'数据', icon:'📦', color:'#a86ad6'},
+};
+
+const arith = op => f => {
+  const n=vv(f.name,'score');
+  return [{t:`${n} = ${n} ${op} ${pyExpr(f.value,'1')}`}];
+};
+
+const BLOCKS = {
+  /* 连接 Minecraft：固定生成三行，IP 由学生在填空里填写 */
+  connect:{cat:'connect', parts:[T('连接 Minecraft'), L('IP'), IN('ip','如 192.168.1.100',180)],
+    gen:f=>{
+      const lines=[{t:'import mcpi.minecraft as minecraft'}];
+      lines.push(f.ip
+        ? {t:`mc = minecraft.Minecraft.create(address="${f.ip}")`}
+        : {t:'mc = minecraft.Minecraft.create()  # TODO: 在 create() 里填入IP，如 address="192.168.1.100"', warn:true});
+      lines.push({t:'player = mc.player'});
+      return lines;
+    }},
+
+  /* 控制类 */
+  ifElifElse:{cat:'flow', multi:true, rows:[
+    {head:[T('如果'), IN('cond1','条件1，如 x > 10',200), T('那么')]},
+    {body:'b1'},
+    {head:[T('否则如果'), IN('cond2','条件2，如 x < -10',200), T('那么')]},
+    {body:'b2'},
+    {head:[T('否则')]},
+    {body:'b3'},
+  ],
+    gen:(f,b)=>[
+      {t:`if ${f.cond1||'True'}${f.cond1?'':'  # TODO: 请填写条件1'}:`}, ...b.b1,
+      {t:`elif ${f.cond2||'True'}${f.cond2?'':'  # TODO: 请填写条件2'}:`}, ...b.b2,
+      {t:'else:'}, ...b.b3,
+    ]},
+  while:{cat:'flow', container:true, parts:[T('当'), IN('cond','条件，如 True',200), T('一直重复')],
+    gen:(f,b)=>[{t:`while ${f.cond||'True'}${f.cond?'':'  # TODO: 请填写循环条件'}:`}, ...b.main]},
+  wait:{cat:'flow', parts:[T('等待'), IN('secs','1',64), T('秒')],
+    gen:f=>[{t:`time.sleep(${vv(f.secs,'1')})`}]},
+
+  /* 方块类：mc.setBlock(x, y, z, block.AIR) */
+  setBlock:{cat:'block', usesMc:true, usesBlock:true,
+    parts:[T('放置方块'), L('X'),IN('x','0',64), L('Y'),IN('y','0',64), L('Z'),IN('z','0',64), L('方块'), PICK('block','btype','STONE')],
+    gen:f=>[{t:`mc.setBlock(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')}, block.${f.btype||'STONE'})`}]},
+  fillBlocks:{cat:'block', usesMc:true, usesBlock:true,
+    parts:[T('填充区域'), L('X1'),IN('x1','0',52), L('Y1'),IN('y1','0',52), L('Z1'),IN('z1','0',52), T('到'),
+           L('X2'),IN('x2','10',52), L('Y2'),IN('y2','10',52), L('Z2'),IN('z2','10',52), L('方块'), PICK('block','btype','STONE')],
+    gen:f=>[{t:`mc.setBlocks(${vv(f.x1,'0')}, ${vv(f.y1,'0')}, ${vv(f.z1,'0')}, ${vv(f.x2,'10')}, ${vv(f.y2,'10')}, ${vv(f.z2,'10')}, block.${f.btype||'STONE'})`}]},
+  getBlock:{cat:'block', usesMc:true,
+    parts:[T('获取方块'), L('存入'),IN('var','blockId',100), L('X'),IN('x','0',56), L('Y'),IN('y','0',56), L('Z'),IN('z','0',56)],
+    gen:f=>[{t:`${vv(f.var,'blockId')} = mc.getBlock(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')})`}]},
+
+  /* 实体类：mc.spawnEntity(x, y+5, z, entity.CHICKEN) */
+  spawnEntity:{cat:'entity', usesMc:true,
+    parts:[T('生成实体'), PICK('entity','etype','CHICKEN'), L('X'),IN('x','x',64), L('Y'),IN('y','y + 5',86), L('Z'),IN('z','z',64)],
+    gen:f=>[{t:`mc.spawnEntity(${vv(f.x,'x')}, ${vv(f.y,'y + 5')}, ${vv(f.z,'z')}, entity.${f.etype||'CHICKEN'})`}]},
+
+  /* 玩家类（player 由「连接 Minecraft」代码块定义） */
+  chat:{cat:'player', usesMc:true, parts:[T('发送消息'), IN('msg','你好，Minecraft！',240)],
+    gen:f=>[{t:`mc.postToChat(${pyStr(f.msg,'你好，Minecraft！')})`}]},
+  getPos:{cat:'player', needsConnect:true,
+    parts:[T('玩家位置'), L('存入'),IN('vx','x',56),IN('vy','y',56),IN('vz','z',56)],
+    gen:f=>[{t:`${vv(f.vx,'x')}, ${vv(f.vy,'y')}, ${vv(f.vz,'z')} = player.getTilePos()`}]},
+  teleport:{cat:'player', usesMc:true,
+    parts:[T('玩家传送到'), L('X'),IN('x','0',64), L('Y'),IN('y','0',64), L('Z'),IN('z','0',64)],
+    gen:f=>[{t:`mc.player.setPos(${vv(f.x,'0')}, ${vv(f.y,'0')}, ${vv(f.z,'0')})`}]},
+
+  /* 数据类 */
+  setVar:{cat:'data', parts:[T('变量'), IN('name','score',96), T('设为'), IN('value','0',96)],
+    gen:f=>[{t:`${vv(f.name,'myVar')} = ${pyExpr(f.value,'0')}`}]},
+  add:{cat:'data', parts:[T('变量'), IN('name','score',96), T('加上'), IN('value','1',80)], gen:arith('+')},
+  sub:{cat:'data', parts:[T('变量'), IN('name','score',96), T('减去'), IN('value','1',80)], gen:arith('-')},
+  mul:{cat:'data', parts:[T('变量'), IN('name','score',96), T('乘以'), IN('value','2',80)], gen:arith('*')},
+  div:{cat:'data', parts:[T('变量'), IN('name','score',96), T('除以'), IN('value','2',80)], gen:arith('/')},
+  mod:{cat:'data', parts:[T('变量'), IN('name','score',96), T('取余数'), IN('value','2',80)], gen:arith('%')},
+  print:{cat:'data', parts:[T('打印'), IN('text','内容或变量',200)],
+    gen:f=>[{t:`print(${pyExpr(f.text,'""')})`}]},
+};
+
+/* =========================================================
+   5. 音效
+   ========================================================= */
+let AC=null;
+function blip(kind){
+  try{
+    AC = AC || new (window.AudioContext||window.webkitAudioContext)();
+    const o=AC.createOscillator(), g=AC.createGain();
+    o.type='square';
+    o.frequency.value = kind==='place' ? 540 : 170;
+    g.gain.setValueAtTime(.055, AC.currentTime);
+    g.gain.exponentialRampToValueAtTime(.001, AC.currentTime+.12);
+    o.connect(g).connect(AC.destination);
+    o.start(); o.stop(AC.currentTime+.13);
+  }catch(e){}
+}
+
+/* =========================================================
+   6. 通用目录选择器（方块 / 实体，可展开、可搜索、中英文）
+   ========================================================= */
+const OPEN_POPS=[];
+function closePops(){ OPEN_POPS.forEach(({pop,btn})=>{pop.remove(); btn._pop=null;}); OPEN_POPS.length=0; }
+function setPickBtn(btn,key){
+  const cat=CATALOGS[btn.dataset.cat];
+  const it=cat.map[key]||Object.values(cat.map)[0];
+  btn.dataset.value=it[1]; btn.value=it[1];
+  btn.innerHTML=`<span class="et">${it[3]||'▪'} ${it[2]}</span><span class="en">${it[1]} ▾</span>`;
+}
+function buildCatalogPop(btn){
+  const cat=CATALOGS[btn.dataset.cat];
+  const pop=document.createElement('div'); pop.className='pick-pop';
+  const search=document.createElement('input'); search.className='pick-search';
+  search.placeholder='🔍 搜索：中文名 / ENGLISH';
+  const list=document.createElement('div');
+  function render(kw=''){
+    list.innerHTML=''; kw=kw.trim().toLowerCase(); let count=0;
+    Object.entries(cat.data).forEach(([g,arr])=>{
+      const items=arr.filter(it=>!kw||it[1].toLowerCase().includes(kw)||it[2].includes(kw));
+      if(!items.length) return;
+      count+=items.length;
+      const gh=document.createElement('div'); gh.className='ep-group'; gh.textContent=g; list.append(gh);
+      const grid=document.createElement('div'); grid.className='ep-grid';
+      items.forEach(it=>{
+        const d=document.createElement('div');
+        d.className='ep-item'+(it[1]===btn.dataset.value?' sel':'');
+        d.innerHTML=`<span class="ei">${it[3]||'▪'}</span><span><span class="cn">${it[2]}</span><span class="en">${it[1]} · ${it[0]}</span></span>`;
+        d.addEventListener('click',()=>{ setPickBtn(btn,it[1]); closePops(); regenerate(); blip('place'); });
+        grid.append(d);
+      });
+      list.append(grid);
+    });
+    if(!count){ const n=document.createElement('div'); n.className='ep-none'; n.textContent='没有找到 😢'; list.append(n); }
+  }
+  search.addEventListener('input',()=>render(search.value));
+  search.addEventListener('pointerdown',e=>e.stopPropagation());
+  render();
+  pop.append(search,list);
+  return pop;
+}
+function openPop(btn,pop){
+  document.body.append(pop); pop.classList.add('open');
+  const r=btn.getBoundingClientRect(), pw=390, ph=370;
+  pop.style.left=Math.max(8, Math.min(r.left, innerWidth-pw-8))+'px';
+  pop.style.top =(r.bottom+ph+8>innerHeight ? Math.max(8,r.top-ph-8) : r.bottom+8)+'px';
+  OPEN_POPS.push({pop,btn});
+}
+function buildPicker(catKey, field, defKey, editable){
+  const wrap=document.createElement('span'); wrap.className='pick-wrap';
+  const btn=document.createElement('button'); btn.type='button';
+  btn.className='pick-btn'; btn.dataset.f=field; btn.dataset.cat=catKey; btn.disabled=!editable;
+  setPickBtn(btn, defKey);
+  btn.addEventListener('click',e=>{
+    e.stopPropagation();
+    let pop=btn._pop; const wasOpen=pop&&pop.classList.contains('open');
+    closePops();
+    if(!wasOpen){ pop=buildCatalogPop(btn); btn._pop=pop; openPop(btn,pop); }
+  });
+  wrap.append(btn);
+  return wrap;
+}
+document.addEventListener('pointerdown',e=>{
+  if(!e.target.closest('.pick-pop') && !e.target.closest('.pick-btn')) closePops();
+},true);
+
+/* =========================================================
+   7. 代码块 DOM 构建
+   ========================================================= */
+function buildPart(p, editable){
+  if(p.t==='txt'){const s=document.createElement('span');s.className='lab';s.textContent=p.v;return s;}
+  if(p.t==='lbl'){const s=document.createElement('span');s.className='axis';s.textContent=p.v;return s;}
+  if(p.t==='in'){const i=document.createElement('input');i.dataset.f=p.f;i.placeholder=p.ph||'';i.style.width=(p.w||64)+'px';i.disabled=!editable;return i;}
+  if(p.t==='pick') return buildPicker(p.cat, p.f, p.def, editable);
+}
+function buildBlock(type, editable){
+  const def=BLOCKS[type], cat=CATS[def.cat];
+  const el=document.createElement('div');
+  el.className='block'+((def.container||def.multi)?' is-c':'');
+  el.dataset.type=type;
+  el.style.setProperty('--bc',cat.color);
+
+  const mkBody=name=>{const b=document.createElement('div');b.className='c-body';b.dataset.name=name;return b;};
+  let first=true;
+  const addHead=parts=>{
+    const head=document.createElement('div'); head.className='b-head';
+    head.insertAdjacentHTML('beforeend', first?'<span class="grip"></span>':'<span class="grip hide"></span>');
+    parts.forEach(p=>head.append(buildPart(p,editable)));
+    if(first){
+      const del=document.createElement('button');
+      del.className='del'; del.textContent='✕'; del.title='删除这个代码块';
+      del.addEventListener('click',e=>{
+        e.stopPropagation();
+        el.style.transition='transform .2s, opacity .2s';
+        el.style.transform='scale(.7)'; el.style.opacity='0';
+        setTimeout(()=>{ el.remove(); regenerate(); },190);
+        blip('del');
+      });
+      head.append(del);
+    }
+    el.append(head); first=false;
+  };
+
+  if(def.rows){ /* if-elif-else：多头 + 多嵌套区 */
+    def.rows.forEach(r=>{ if(r.head) addHead(r.head); else if(r.body) el.append(mkBody(r.body)); });
+    const foot=document.createElement('div'); foot.className='c-foot'; el.append(foot);
+  }else{
+    addHead(def.parts);
+    if(def.container){ el.append(mkBody('main')); const foot=document.createElement('div'); foot.className='c-foot'; el.append(foot); }
+  }
+  return el;
+}
+
+/* =========================================================
+   8. 分类标签页 + 代码块仓库
+   ========================================================= */
+const tabsEl=$('#tabs'), paletteEl=$('#palette');
+function renderTabs(){
+  Object.entries(CATS).forEach(([key,c],idx)=>{
+    const b=document.createElement('button');
+    b.className='tab'+(idx===0?' active':'');
+    b.style.setProperty('--tc', c.color);
+    b.innerHTML=`${c.icon} ${c.name}`;
+    b.addEventListener('click',()=>{
+      tabsEl.querySelectorAll('.tab').forEach(t=>t.classList.remove('active'));
+      b.classList.add('active');
+      renderPalette(key);
+    });
+    tabsEl.append(b);
+  });
+}
+function renderPalette(key){
+  const c=CATS[key];
+  paletteEl.innerHTML='';
+  const bar=document.createElement('div');
+  bar.className='pal-bar'; bar.style.setProperty('--bc', c.color);
+  bar.textContent=`${c.icon} ${c.name}类`;
+  paletteEl.append(bar);
+  Object.entries(BLOCKS).filter(([,d])=>d.cat===key).forEach(([type])=>{
+    const blk=buildBlock(type,false);
+    blk.className='block pal'+(BLOCKS[type].container?' is-c':'');
+    paletteEl.append(blk);
+  });
+}
+
+/* =========================================================
+   9. 拖拽系统（Pointer Events）
+   ========================================================= */
+const wsEl=$('#workspace');
+const dropLine=document.createElement('div'); dropLine.className='drop-line';
+const drag={lifted:false};
+
+function startDrag(e, cfg){
+  closePops();
+  Object.assign(drag,{cfg, startX:e.clientX, startY:e.clientY, lifted:false, target:null, ghost:null, node:null});
+  window.addEventListener('pointermove', drag._mv=e=>onDragMove(e));
+  window.addEventListener('pointerup',   drag._up=e=>onDragEnd(e));
+  window.addEventListener('keydown',     drag._key=e=>{ if(e.key==='Escape') finishDrag('cancel'); });
+}
+function lift(e){
+  drag.lifted=true;
+  document.body.classList.add('dragging');
+  const src = drag.cfg.mode==='new'
+    ? Object.assign(buildBlock(drag.cfg.type,false),
+        {className:'block'+((BLOCKS[drag.cfg.type].container||BLOCKS[drag.cfg.type].multi)?' is-c':'')})
+    : drag.cfg.el;
+  const r=src.getBoundingClientRect();
+  drag.ox=e.clientX-r.left; drag.oy=e.clientY-r.top;
+  if(drag.cfg.mode==='move'){ drag.fromParent=src.parentNode; drag.fromNext=src.nextSibling; }
+  drag.node=src;
+  const g=document.createElement('div'); g.className='ghost'; g.style.width=r.width+'px';
+  g.append(src); document.body.append(g); drag.ghost=g;
+  g.style.transform=`translate(${r.left}px,${r.top}px)`;
+}
+function onDragMove(e){
+  if(!drag.lifted){
+    if(Math.hypot(e.clientX-drag.startX, e.clientY-drag.startY)<6) return;
+    lift(e);
+  }
+  drag.ghost.style.transform=`translate(${e.clientX-drag.ox}px,${e.clientY-drag.oy}px) rotate(1.2deg) scale(1.02)`;
+  drag.target=locateDrop(e.clientX, e.clientY);
+  placeIndicator(drag.target);
+  if(drag.cfg.mode==='move') drag.ghost.classList.toggle('ghost-bad', !drag.target);
+}
+function locateDrop(x,y){
+  const dragged=drag.node;
+  const cands=[wsEl, ...wsEl.querySelectorAll('.c-body')].filter(c=>!dragged.contains(c));
+  let best=null, bestArea=Infinity;
+  for(const c of cands){
+    const r=c.getBoundingClientRect();
+    if(x>=r.left && x<=r.right && y>=r.top && y<=r.bottom){
+      const a=r.width*r.height;
+      if(a<bestArea){ bestArea=a; best=c; }
+    }
+  }
+  if(!best) return null;
+  const kids=[...best.children].filter(k=>k.classList.contains('block'));
+  let before=null;
+  for(const k of kids){
+    const r=k.getBoundingClientRect();
+    if(y < r.top + r.height/2){ before=k; break; }
+  }
+  return {container:best, before};
+}
+function placeIndicator(t){
+  dropLine.remove();
+  document.querySelectorAll('.drop-hot').forEach(e=>e.classList.remove('drop-hot'));
+  if(!t) return;
+  t.container.insertBefore(dropLine, t.before||null);
+  t.container.classList.add('drop-hot');
+}
+function onDragEnd(){
+  if(!drag.lifted) return finishDrag('click');
+  finishDrag(drag.target ? 'drop' : 'outside');
+}
+function finishDrag(commit){
+  window.removeEventListener('pointermove', drag._mv);
+  window.removeEventListener('pointerup', drag._up);
+  window.removeEventListener('keydown', drag._key);
+  dropLine.remove();
+  document.querySelectorAll('.drop-hot').forEach(e=>e.classList.remove('drop-hot'));
+  document.body.classList.remove('dragging');
+  if(drag.lifted){
+    const g=drag.ghost;
+    if(commit==='drop' && drag.target){
+      const node = drag.cfg.mode==='new' ? buildBlock(drag.cfg.type,true) : drag.node;
+      drag.target.container.insertBefore(node, drag.target.before||null);
+      node.classList.add('landed');
+      setTimeout(()=>node.classList.remove('landed'),320);
+      g.remove(); blip('place');
+    }else if(commit==='outside' && drag.cfg.mode==='move'){
+      g.style.transition='transform .2s ease-in, opacity .2s ease-in';
+      g.style.transform+=' scale(.55) rotate(6deg)'; g.style.opacity='0';
+      setTimeout(()=>g.remove(),210); blip('del');
+    }else{
+      if(drag.cfg.mode==='move') drag.fromParent.insertBefore(drag.node, drag.fromNext);
+      g.remove();
+    }
+  }
+  drag.lifted=false;
+  regenerate();
+}
+paletteEl.addEventListener('pointerdown', e=>{
+  const blk=e.target.closest('.block'); if(!blk) return;
+  e.preventDefault();
+  startDrag(e,{mode:'new', type:blk.dataset.type});
+});
+paletteEl.addEventListener('dblclick', e=>{
+  const blk=e.target.closest('.block'); if(!blk) return;
+  const node=buildBlock(blk.dataset.type,true);
+  wsEl.append(node); node.classList.add('landed');
+  setTimeout(()=>node.classList.remove('landed'),320);
+  node.scrollIntoView({block:'nearest'});
+  blip('place'); regenerate();
+});
+wsEl.addEventListener('pointerdown', e=>{
+  if(e.target.closest('input,select,button')) return;
+  const blk=e.target.closest('.block'); if(!blk) return;
+  e.preventDefault();
+  startDrag(e,{mode:'move', el:blk});
+});
+wsEl.addEventListener('scroll', closePops, true);
+
+/* =========================================================
+   10. 代码生成 + 高亮渲染
+   ========================================================= */
+let lastCode='';
+function genBlock(el, depth){
+  const def=BLOCKS[el.dataset.type];
+  const f={}, bodies={};
+  [...el.children].forEach(ch=>{
+    if(ch.classList.contains('b-head')){
+      ch.querySelectorAll('[data-f]').forEach(i=>{
+        f[i.dataset.f]=((i.tagName==='BUTTON' ? i.dataset.value : i.value)||'').trim();
+      });
+    }else if(ch.classList.contains('c-body')){
+      bodies[ch.dataset.name||'main']=genChildren(ch, depth+1);
+    }
+  });
+  Object.keys(bodies).forEach(k=>{ if(!bodies[k].length) bodies[k]=[{d:depth+1,t:'pass'}]; });
+  return def.gen(f, bodies).map(l=>({t:l.t, warn:l.warn, d:l.d??depth}));
+}
+function genChildren(container, depth){
+  let lines=[];
+  [...container.children].forEach(k=>{ if(k.classList.contains('block')) lines=lines.concat(genBlock(k,depth)); });
+  return lines;
+}
+function regenerate(){
+  const blocks=[...wsEl.querySelectorAll('.block')];
+  const types=blocks.map(b=>b.dataset.type);
+  const body=genChildren(wsEl,0);
+  /* 按需自动补 import */
+  const head=[];
+  if(types.some(t=>BLOCKS[t].usesBlock)) head.push({t:'import mcpi.block as block'});
+  if(types.includes('spawnEntity')) head.push({t:'import mcpi.entity as entity'});
+  if(types.includes('wait')) head.push({t:'import time'});
+  /* 用到了 mc / player 却没有连接代码块时给出提醒 */
+  if(types.some(t=>BLOCKS[t].usesMc||BLOCKS[t].needsConnect) && !types.includes('connect'))
+    head.push({t:'# ⚠ 还没有「连接 Minecraft」代码块，mc 和 player 未定义，请先添加', warn:true});
+  if(head.length) head.push({t:''});
+  const all=[...head, ...body];
+  if(!blocks.length) all.push({t:'# 👈 工作区是空的 —— 从左侧仓库拖入代码块，或点击「加载示例」', dim:true});
+  lastCode=all.map(l=>'    '.repeat(l.d||0)+l.t).join('\n')+'\n';
+  renderCode(all);
+  $('#statBlocks').textContent=blocks.length;
+  $('#statLines').textContent=all.length;
+  refreshHints();
+}
+function refreshHints(){
+  wsEl.classList.toggle('empty', !wsEl.querySelector(':scope > .block'));
+  wsEl.querySelectorAll('.c-body').forEach(b=>b.classList.toggle('empty', !b.querySelector(':scope > .block')));
+}
+function hl(src){
+  const s=src.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  return s.replace(
+    /(#.*)|("(?:[^"\\]|\\.)*"|'(?:[^'\\]|\\.)*')|\b(import|as|if|elif|else|for|while|in|def|return|pass|break|continue|True|False|None|and|or|not)\b|\b(mc|minecraft|mcpi|entity|block|time|range|print|player)\b|\b(\d+(?:\.\d+)?)\b/g,
+    (m,com,str,kw,api,num)=> com?`<i class="tk-c">${com}</i>`: str?`<i class="tk-s">${str}</i>`
+      : kw?`<i class="tk-k">${kw}</i>`: api?`<i class="tk-a">${api}</i>`:`<i class="tk-n">${num}</i>`);
+}
+function renderCode(items){
+  const box=$('#codebox'), st=box.scrollTop;
+  let html=items.map((l,i)=>`<div class="cl${l.warn?' warn':''}${l.dim?' dim':''}"><span class="ln">${i+1}</span><span class="lt">${hl('    '.repeat(l.d||0)+l.t)}</span></div>`).join('');
+  html+=`<div class="cl"><span class="ln">${items.length+1}</span><span class="lt"><span class="cur"></span></span></div>`;
+  box.innerHTML=html; box.scrollTop=st;
+}
+wsEl.addEventListener('input', e=>{ if(e.target.matches('input')) regenerate(); });
+wsEl.addEventListener('change', e=>{ if(e.target.matches('select')) regenerate(); });
+
+/* =========================================================
+   11. 复制 / 下载 / 示例 / 清空
+   ========================================================= */
+$('#btnCopy').addEventListener('click', async function(){
+  try{ await navigator.clipboard.writeText(lastCode); }
+  catch(e){
+    const ta=document.createElement('textarea'); ta.value=lastCode;
+    document.body.append(ta); ta.select(); document.execCommand('copy'); ta.remove();
+  }
+  const old=this.textContent; this.textContent='✓ 已复制';
+  setTimeout(()=>this.textContent=old,1200);
+});
+$('#btnDown').addEventListener('click', ()=>{
+  const a=document.createElement('a');
+  a.href=URL.createObjectURL(new Blob([lastCode],{type:'text/x-python'}));
+  a.download='minecraft_program.py'; a.click();
+  setTimeout(()=>URL.revokeObjectURL(a.href),500);
+});
+const SAMPLE=[
+  {type:'connect', f:{ip:'192.168.1.100'}},
+  {type:'chat', f:{msg:'你好，Minecraft！冒险开始啦！'}},
+  {type:'getPos'},
+  {type:'setBlock', f:{x:'x', y:'y - 1', z:'z', btype:'GOLD_BLOCK'}},
+  {type:'ifElifElse', f:{cond1:'x > 10', cond2:'x < -10'}, kids:{
+     b1:[{type:'chat', f:{msg:'你在东边！'}}],
+     b2:[{type:'chat', f:{msg:'你在西边！'}}],
+     b3:[{type:'chat', f:{msg:'你在中间！'}}],
+  }},
+  {type:'spawnEntity', f:{etype:'CHICKEN'}},
+  {type:'add', f:{name:'score', value:'1'}},
+  {type:'print', f:{text:'score'}},
+];
+function specToBlock(spec){
+  const el=buildBlock(spec.type,true);
+  if(spec.f) el.querySelectorAll('[data-f]').forEach(i=>{
+    const v=spec.f[i.dataset.f]; if(v==null) return;
+    if(i.tagName==='BUTTON') setPickBtn(i,v); else i.value=v;
+  });
+  if(spec.kids){
+    if(Array.isArray(spec.kids)){
+      const b=el.querySelector('.c-body'); spec.kids.forEach(k=>b.append(specToBlock(k)));
+    }else{
+      Object.entries(spec.kids).forEach(([name,arr])=>{
+        const b=el.querySelector(`.c-body[data-name="${name}"]`);
+        arr.forEach(k=>b.append(specToBlock(k)));
+      });
+    }
+  }
+  return el;
+}
+function loadSample(){
+  wsEl.innerHTML='';
+  SAMPLE.forEach(s=>wsEl.append(specToBlock(s)));
+  regenerate(); blip('place');
+}
+$('#btnSample').addEventListener('click', loadSample);
+$('#btnClear').addEventListener('click', ()=>{ wsEl.innerHTML=''; regenerate(); blip('del'); });
+
+/* =========================================================
+   12. 装饰：苦力怕像素脸 / 漂浮粒子 / 小贴士轮播
+   ========================================================= */
+(function creeper(){
+  const MAP=['........','........','.XX..XX.','.XX..XX.','...XX...','..XXXX..','..XXXX..','..X..X..'];
+  const u=5.75, sh=[];
+  MAP.forEach((row,r)=>[...row].forEach((ch,c)=>{ if(ch==='X') sh.push(`${c*u}px ${r*u}px 0 #0c1f0d`); }));
+  [[0,0],[7,0],[3,1],[6,2],[1,5],[6,6],[0,7],[7,7]].forEach(([c,r])=>sh.push(`${c*u}px ${r*u}px 0 #3f8f33`));
+  const i=$('#cpx');
+  i.style.width=i.style.height=u+'px';
+  i.style.boxShadow=sh.join(',');
+})();
+(function particles(){
+  const fx=$('#fx'), COLORS=['#7dd95c','#b8e986','#e8c766','#6fd7c9','#8ea1ff'];
+  for(let k=0;k<16;k++){
+    const s=document.createElement('i'), sz=3+Math.random()*5;
+    s.style.cssText=`left:${Math.random()*100}%;width:${sz}px;height:${sz}px;background:${COLORS[k%5]};`+
+      `animation-duration:${9+Math.random()*14}s;animation-delay:-${Math.random()*20}s;opacity:${.2+Math.random()*.35}`;
+    fx.append(s);
+  }
+})();
+(function tips(){
+  const TIPS=[
+    '「连接 Minecraft」代码块里要填 IP 地址，它会自动写进 create() 里',
+    '填空里可以写算式，例如坐标填 <b>y + 5</b>',
+    '先用「玩家位置」代码块，后面就能用 <b>x、y、z</b> 这三个变量啦',
+    '「放置方块」里有 <b>107 种方块</b>，「生成实体」里有 <b>79 种生物</b>，点选择器挑一个吧',
+    '<b>如果 / 当…一直重复</b> 里面可以再放代码块，这叫嵌套',
+    '点代码块右上角的 <b>✕</b> 删除，也可以把代码块拖出工作区删除',
+  ];
+  const el=$('#tip'); let ti=0;
+  el.innerHTML=TIPS[0];
+  setInterval(()=>{
+    el.classList.add('fade');
+    setTimeout(()=>{ ti=(ti+1)%TIPS.length; el.innerHTML=TIPS[ti]; el.classList.remove('fade'); },400);
+  },7000);
+})();
+
+/* =========================================================
+   13. 初始化
+   ========================================================= */
+renderTabs();
+renderPalette('connect');
+loadSample();
+</script>
+</body>
+</html>
